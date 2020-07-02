@@ -167,7 +167,7 @@ int main(int argc, char * argv[])
                       controller.setEncoderValues(q_vector);
                       controller.setEncoderVelocities(dq_vector);
                       // controller.setJointTorques(tau_vector);
-                      controller.setWrenches(wrenches);
+                     // controller.setWrenches(wrenches);
                       if(controller.running && controller.run())
                       {
                         const auto & rjo = controller.robot().refJointOrder();
