@@ -5,7 +5,7 @@ namespace po = boost::program_options;
 
 #include <franka/exception.h>
 #include <franka/robot.h>
-
+#include <franka/model.h>
 #include <chrono>
 #include <condition_variable>
 #include <iostream>
@@ -100,7 +100,7 @@ struct PandaControlLoop
                       }
                       if(controller.running)
                       {
-                        return control.update(robot, command, sensor_id % steps, steps);
+                        return control.update(robot, command, sensor_id % steps, steps, gravity);
                       }
                       return franka::MotionFinished(control);
                     });
@@ -109,6 +109,8 @@ struct PandaControlLoop
   std::string name;
   franka::Robot robot;
   franka::RobotState state;
+  franka::Model model = robot.loadModel();
+  std::array<double, 7> gravity = model.gravity(state);
   PandaControlType<cm> control;
   size_t sensor_id = 0;
   size_t steps = 1;

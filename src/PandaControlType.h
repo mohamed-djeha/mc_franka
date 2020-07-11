@@ -22,7 +22,7 @@ struct PandaControlType<ControlMode::Position> : public franka::JointPositions
   PandaControlType(const franka::RobotState & state) : franka::JointPositions(state.q), prev_q_(state.q) {}
 
   // Interpolate control value from the data in a robot
-  franka::JointPositions update(const mc_rbdyn::Robot & robot, const rbd::MultiBodyConfig & mbc, size_t iter, size_t N)
+  franka::JointPositions update(const mc_rbdyn::Robot & robot, const rbd::MultiBodyConfig & mbc, size_t iter, size_t N, const std::array<double, 7> & gravity)
   {
     const auto & rjo = robot.refJointOrder();
     for(size_t i = 0; i < q.size(); ++i)
@@ -54,7 +54,7 @@ struct PandaControlType<ControlMode::Velocity> : public franka::JointVelocities
   PandaControlType(const franka::RobotState & state) : franka::JointVelocities(state.dq) {}
 
   // Update control value from the data in a robot
-  franka::JointVelocities update(const mc_rbdyn::Robot & robot, const rbd::MultiBodyConfig & mbc, size_t, size_t)
+  franka::JointVelocities update(const mc_rbdyn::Robot & robot, const rbd::MultiBodyConfig & mbc, size_t, size_t, const std::array<double, 7> & gravity)
   {
     const auto & rjo = robot.refJointOrder();
     for(size_t i = 0; i < dq.size(); ++i)
@@ -79,12 +79,13 @@ struct PandaControlType<ControlMode::Torque> : public franka::Torques
   PandaControlType(const franka::RobotState & state) : franka::Torques(state.tau_J) {}
 
   // Update control value from the data in a robot
-  franka::Torques update(const mc_rbdyn::Robot & robot, const rbd::MultiBodyConfig & mbc, size_t, size_t)
-  {
+  franka::Torques update(const mc_rbdyn::Robot & robot, const rbd::MultiBodyConfig & mbc, size_t, size_t, const std::array<double, 7> & gravity)
+  { 
+    //franka::Robot robotPanda;
     const auto & rjo = robot.refJointOrder();
     for(size_t i = 0; i < tau_J.size(); ++i)
     {
-      tau_J[i] = mbc.jointTorque[robot.jointIndexByName(rjo[i])][0];
+      tau_J[i] = mbc.jointTorque[robot.jointIndexByName(rjo[i])][0] - gravity[i];
     }
     return *this;
   }
