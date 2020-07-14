@@ -84,7 +84,7 @@ struct PandaControlLoop
   }
 
   void control_thread(mc_control::MCGlobalController & controller)
-  {
+  { 
     control.control(robot,
                     [ this, &controller ](const franka::RobotState & stateIn, franka::Duration) ->
                     typename PandaControlType<cm>::ReturnT {
@@ -99,7 +99,7 @@ struct PandaControlLoop
                         command_cv.wait(command_lock);
                       }
                       if(controller.running)
-                      {
+                      { gravity = model.gravity(state);
                         return control.update(robot, command, sensor_id % steps, steps, gravity);
                       }
                       return franka::MotionFinished(control);
