@@ -2,7 +2,9 @@
 
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
-
+#include <Eigen/Dense>
+#include <array>
+#include <cmath>
 #include <franka/exception.h>
 #include <franka/robot.h>
 #include <franka/model.h>
@@ -10,7 +12,7 @@ namespace po = boost::program_options;
 #include <condition_variable>
 #include <iostream>
 #include <thread>
-
+#include <mc_rtc/logging.h>
 namespace mc_time
 {
 
@@ -34,7 +36,7 @@ struct PandaControlLoop
 {
   PandaControlLoop(const std::string & name, const std::string & ip, size_t steps)
   : name(name), robot(ip), state(robot.readOnce()), control(state), steps(steps)
-  {
+  { 
   }
 
   void updateSensors(mc_rbdyn::Robot & robot, mc_rbdyn::Robot & real)
@@ -64,6 +66,20 @@ struct PandaControlLoop
   {
     auto & robot = controller.controller().robots().robot(name);
     auto & real = controller.controller().realRobots().robot(name);
+
+    std::vector<double> positionFranka;
+    std::vector<double> velocityFranka;
+    std::vector<double> torqueFranka;
+    positionFranka.reserve(7);
+    velocityFranka.reserve(7);
+    torqueFranka.reserve(7);
+    positionFranka.assign(std::begin(state.q),std::end(state.q));
+    velocityFranka.assign(std::begin(state.dq),std::end(state.dq));
+    torqueFranka.assign(std::begin(state.tau_J),std::end(state.tau_J));
+    controller.setEncoderValues(positionFranka);
+    controller.setEncoderVelocities(velocityFranka);
+    controller.setJointTorques(torqueFranka);
+
     updateSensors(robot, real);
   }
 
@@ -81,26 +97,292 @@ struct PandaControlLoop
     }
     robot.forwardKinematics();
     real.mbc() = robot.mbc();
+    integral_init = state.q;
+    integral_q = integral_init[4];
+    integral_dq = 0.;
   }
 
   void control_thread(mc_control::MCGlobalController & controller)
   { 
     control.control(robot,
-                    [ this, &controller ](const franka::RobotState & stateIn, franka::Duration) ->
+                    [ this, &controller ](const franka::RobotState & stateIn, franka::Duration time) ->
                     typename PandaControlType<cm>::ReturnT {
                       this->state = stateIn;
                       sensor_id += 1;
                       auto & robot = controller.controller().robots().robot(name);
                       auto & real = controller.controller().realRobots().robot(name);
+                      
                       if(sensor_id % steps == 0)
                       {
                         sensors_cv.notify_all();
                         std::unique_lock<std::mutex> command_lock(command_mutex);
                         command_cv.wait(command_lock);
                       }
+                      period = time.toSec();
+                      //t += 0.001;
+                      //dt = 0.001;
+                      t += period;
+                      dt = period;
+                      //double delta_angle = M_PI / 30. * t;
+                      double delta_angle = M_PI / 8.0 * (1 - std::cos(M_PI / 2.5 * t));
+                      //double acc = 0.1;
+                      double P = 2;
+                      double D = 2 * std::sqrt(P);
+                      q_goal = delta_angle;
+                      double acc = - D * state.dq[4] - P * (state.q[4] - q_goal);
+                      integral_q += integral_dq * dt + 0.5 * acc * dt * dt;
+                      integral_dq += acc * dt;
+                     // integral = {{integral_init[0], integral_init[1] ,
+                     //              integral_init[2], integral_init[3],
+                     //              integral_init[4] + delta_angle, integral_init[5], integral_init[6]}};
+                      integral = {{integral_init[0], integral_init[1] ,
+                                   integral_init[2], integral_init[3],
+                                   integral_q, integral_init[5], integral_init[6]}};
+                     // integral = {{integral_init[0], integral_init[1] ,
+                     //              integral_init[2], integral_init[3],
+                     //              state.q[4] + 0.005, integral_init[5], integral_init[6]}};
+                     // integral = {{integral_init[0], integral_init[1] ,
+                     //              integral_init[2], integral_init[3],
+                     //              state.q_d[4] + state.dq_d[4] * 0.001 + 0.5 * 0.00001 * 5, integral_init[5], integral_init[6]}};
+                     // integral_q = state.q + state.dq * 0.001 + 0.5 * 0.00001 * 0.1; 
+                      //integral_dq = 
+                      //------------------------------------
+                        controller.controller().logger().addLogEntry("qRef", [this]() {
+                          std::vector<double> ret;
+                          ret.reserve(7);
+                          for(size_t j = 0; j < 7; ++j)
+                          {
+                            ret.push_back(integral[j]);
+                          }
+                          return ret;
+                        });
+                        //------------------------------------
+                        controller.controller().gui()->addElement(
+                          {"Franka"}, mc_rtc::gui::NumberInput("qGoal", [this]() { return q_goal; }, [this](double d) { q_goal = d; }));
+                        //------------------------------------
+                        controller.controller().logger().addLogEntry("qGoal", [this]() {
+                          double ret = q_goal;
+                          return ret;
+                        });
+
                       if(controller.running)
-                      { gravity = model.gravity(state);
-                        return control.update(robot, command, sensor_id % steps, steps, gravity);
+                      { 
+                        gravity = model.gravity(state);
+                        coriolis = model.coriolis(state);
+                        massMatrix_array = model.mass(state);
+                        //tauMeasure = state.tau_J;
+                        Eigen::Map<const Eigen::Matrix<double, 7, 7>> massMatrix(massMatrix_array.data());
+                        //Eigen::Map<const Eigen::Matrix<double, 7, 1>> accelerationFranka(state.ddq_d.data());
+                        
+                        const auto & rjo = robot.refJointOrder();
+                        int i = 0;
+                        for(const auto & j : rjo)
+                        {
+                          accelerationQP(i, 0) = robot.mbc().alphaD[robot.jointIndexByName(j)][0];
+                          i += 1;
+                        }
+                         
+                        //massTorque.reserve(7);
+                        //massTorque = massMatrix * accelerationFranka;
+                       massTorque = massMatrix * accelerationQP;
+
+                        //LOG_INFO("----------")
+                        //LOG_INFO("gravity[0]" << gravity[0]);
+                        //LOG_INFO("gravity[1]" << gravity[1]);
+                        //LOG_INFO("gravity[2]" << gravity[2]);
+                        //LOG_INFO("gravity[3]" << gravity[3]);
+                        //LOG_INFO("gravity[4]" << gravity[4]);
+                        //LOG_INFO("gravity[5]" << gravity[5]);
+                        //LOG_INFO("gravity[6]" << gravity[6]);
+                        //LOG_INFO("----------");
+                        //LOG_INFO("massTorque[0]" << massTorque(0,0));
+                        //LOG_INFO("massTorque[1]" << massTorque(1,0));
+                        //LOG_INFO("massTorque[3]" << massTorque(2,0));
+                        //LOG_INFO("massTorque[4]" << massTorque(3,0));
+                        //LOG_INFO("massTorque[5]" << massTorque(4,0));
+                        //LOG_INFO("massTorque[6]" << massTorque(5,0));
+                        //LOG_INFO("massTorque[7]" << massTorque(6,0));
+                        //------------------------------------
+                        controller.controller().logger().addLogEntry("gravity", [this]() {
+                          std::vector<double> ret;
+                          ret.reserve(7);
+                          for(size_t j = 0; j < 7; ++j)
+                          {
+                            ret.push_back(gravity[j]);
+                          }
+                          return ret;
+                        });
+                        //------------------------------------
+                        controller.controller().logger().addLogEntry("gravity&coriolis", [this]() {
+                          std::vector<double> ret;
+                          ret.reserve(7);
+                          for(size_t j = 0; j < 7; ++j)
+                          {
+                            ret.push_back(gravity[j] + coriolis[j]);
+                          }
+                          return ret;
+                        });
+                        //------------------------------------
+                          controller.controller().logger().addLogEntry("q_d", [this]() {
+                          std::vector<double> ret;
+                          ret.reserve(7);
+                          for(size_t j = 0; j < 7; ++j)
+                          {
+                            ret.push_back(state.q_d[j]);
+                          }
+                          return ret;
+                        });
+                          //------------------------------------
+                          controller.controller().logger().addLogEntry("alpha_d", [this]() {
+                          std::vector<double> ret;
+                          ret.reserve(7);
+                          for(size_t j = 0; j < 7; ++j)
+                          {
+                            ret.push_back(state.dq_d[j]);
+                          }
+                          return ret;
+                        });
+                         //------------------------------------tau_ext_hat_filtered
+                          controller.controller().logger().addLogEntry("tauDesired", [this]() {
+                          std::vector<double> ret;
+                          ret.reserve(7);
+                          for(size_t j = 0; j < 7; ++j)
+                          {
+                            ret.push_back(state.tau_J_d[j]);
+                          }
+                          return ret;
+                        });
+                          //------------------------------------
+                          controller.controller().logger().addLogEntry("tauExt", [this]() {
+                          std::vector<double> ret;
+                          ret.reserve(7);
+                          for(size_t j = 0; j < 7; ++j)
+                          {
+                            ret.push_back(state.tau_ext_hat_filtered[j]);
+                          }
+                          return ret;
+                        });
+                          //------------------------------------
+                       //   controller.controller().logger().addLogEntry("tauMeasured", [this]() {
+                       //   std::vector<double> ret;
+                       //   ret.reserve(7);
+                       //   for(size_t j = 0; j < 7; ++j)
+                       //   {
+                       //     ret.push_back(state.tau_J[j]);
+                       //   }
+                       //   return ret;
+                       // });
+                       //   //------------------------------------
+                       //   controller.controller().logger().addLogEntry("dTauFranka", [this]() {
+                       //   std::vector<double> ret;
+                       //   ret.reserve(7);
+                       //   for(size_t j = 0; j < 7; ++j)
+                       //   {
+                       //     ret.push_back(state.dtau_J[j]);
+                       //   }
+                       //   return ret;
+                       // });
+                        //------------------------------------
+                       //  controller.controller().logger().addLogEntry("qFranka", [this]() {
+                       //  std::vector<double> ret;
+                       //  ret.reserve(7);
+                       //  for(size_t j = 0; j < 7; ++j)
+                       //  {
+                       //    ret.push_back(state.q[j]);
+                       //  }
+                       //  return ret;
+                       // });
+                         //------------------------------------
+                         controller.controller().logger().addLogEntry("alphaDFranka", [this]() {
+                         std::vector<double> ret;
+                         ret.reserve(7);
+                         for(size_t j = 0; j < 7; ++j)
+                         {
+                           ret.push_back(state.ddq_d[j]);
+                         }
+                         return ret;
+                        });
+                         //------------------------------------
+                         controller.controller().logger().addLogEntry("massTorque", [this]() {
+                         std::vector<double> ret;
+                         ret.reserve(7);
+                         for(size_t j = 0; j < 7; ++j)
+                         {
+                           ret.push_back( massTorque(j,0));
+                         }
+                         return ret;
+                        });
+                        //------------------------------------
+                         controller.controller().logger().addLogEntry("accQP", [this]() {
+                         std::vector<double> ret;
+                         ret.reserve(7);
+                         for(size_t j = 0; j < 7; ++j)
+                         {
+                           ret.push_back( accelerationQP(j,0));
+                         }
+                         return ret;
+                        });
+                        //------------------------------------
+                        controller.controller().logger().addLogEntry("mass&gravity&coriolis", [this]() {
+                          std::vector<double> ret;
+                          ret.reserve(7);
+                          for(size_t j = 0; j < 7; ++j)
+                          {
+                            ret.push_back(gravity[j] + coriolis[j] + massTorque(j,0));
+                          }
+                          return ret;
+                        });
+                       // //------------------------------------
+                        controller.controller().logger().addLogEntry("TauIn-Gravity", [this]() {
+                          std::vector<double> ret;
+                          ret.reserve(7);
+                          for(size_t j = 0; j < 7; ++j)
+                          {
+                            ret.push_back(state.tau_J[j] - gravity[j]);
+                          }
+                          return ret;
+                        });
+                       // //------------------------------------
+                        controller.controller().logger().addLogEntry("dTheta", [this]() {
+                          std::vector<double> ret;
+                          ret.reserve(7);
+                          for(size_t j = 0; j < 7; ++j)
+                          {
+                            ret.push_back(state.dtheta[j]);
+                          }
+                          return ret;
+                        });
+                       // //------------------------------------
+                        controller.controller().logger().addLogEntry("ControlSuccessRate", [this]() {
+                          double ret = state.control_command_success_rate;
+                          return ret;
+                        });
+                         //------------------------------------
+                        controller.controller().logger().addLogEntry("VelocityFeedbackGain", [this]() {
+                          double ret = velGain;
+                          return ret;
+                        });
+                         //------------------------------------
+                        controller.controller().logger().addLogEntry("torqueStep", [this]() {
+                          double ret = torqueStep;
+                          return ret;
+                        });
+                        //------------------------------------
+                        controller.controller().logger().addLogEntry("timeFranka", [this]() {
+                          double ret = period;
+                          return ret;
+                        });
+                         //------------------------------------
+                        controller.controller().gui()->addElement(
+                          {"Franka"}, mc_rtc::gui::NumberInput("Torque input", [this]() { return torqueStep; }, [this](double d) { torqueStep = d; }));
+                         //------------------------------------
+                        controller.controller().gui()->addElement(
+                          {"Franka"}, mc_rtc::gui::NumberInput("Velocity feedback gain", [this]() { return velGain; }, [this](double d) { velGain = d; }));
+                        //------------------------------------
+                        controller.controller().gui()->addElement(
+                          {"Franka"}, mc_rtc::gui::NumberInput("Position feedback gain", [this]() { return posGain; }, [this](double d) { posGain = d; }));
+                        
+                        return control.update(robot, command, sensor_id % steps, steps, coriolis, massTorque, state.tau_ext_hat_filtered, integral, torqueStep, posGain, velGain, feedback, period, state.q_d, state.dq_d);
                       }
                       return franka::MotionFinished(control);
                     });
@@ -111,6 +393,31 @@ struct PandaControlLoop
   franka::RobotState state;
   franka::Model model = robot.loadModel();
   std::array<double, 7> gravity = model.gravity(state);
+  std::array<double, 7> coriolis = model.coriolis(state);
+  std::array<double, 7> tauMeasure = state.tau_J;
+  //std::array<double, 7> alphaDFranka = state.ddq_d;
+  std::array<double, 49> massMatrix_array = model.mass(state);
+  Eigen::Matrix<double, 7, 1> massTorque;
+  Eigen::Matrix<double, 7, 1> accelerationQP;
+  Eigen::Matrix<double, 7, 7> massMatrix;
+  double torqueStep = 0.;
+  double velGain = 10.;
+  double posGain = 1.;
+  double t = 0.;
+  double dt;
+  double period;
+  double integral_q;
+  double integral_dq;
+  double q_goal = 0;
+  //std::vector<double> massMatrix_vector;
+  //massMatrix_vector.reserve(49);
+  //massMatrix_vector.assign(std::begin(massMatrix_array), std::end(massMatrix_array));
+  //double integral;
+  std::array<double, 7> integral;
+  std::array<double, 7> integral_init;
+  //double integral_init;// = state.q[1];
+  double feedback = 0.;
+  //Eigen::Map<const Eigen::Matrix<double, 7, 7>> massMatrix(std::array<double, 49> massMatrix_array.data());
   PandaControlType<cm> control;
   size_t sensor_id = 0;
   size_t steps = 1;
