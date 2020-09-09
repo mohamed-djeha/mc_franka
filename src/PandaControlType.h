@@ -62,7 +62,7 @@ struct PandaControlType<ControlMode::Position> : public franka::JointPositions
 
   void control(franka::Robot & robot, CallbackT cb)
   {
-    robot.control(cb, franka::ControllerMode::kJointImpedance, true, 100); 
+    robot.control(cb, franka::ControllerMode::kJointImpedance, true, 100); //franka::kMaxCutoffFrequency
   }
 
 private:

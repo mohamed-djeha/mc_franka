@@ -98,8 +98,10 @@ struct PandaControlLoop
     robot.forwardKinematics();
     real.mbc() = robot.mbc();
     integral_init = state.q;
-    integral_q = integral_init[4];
+    integral_q = integral_init[index];
     integral_dq = 0.;
+    integral = integral_init;
+    //e_prec = state.q[4] - q_goal;
   }
 
   void control_thread(mc_control::MCGlobalController & controller)
@@ -123,21 +125,60 @@ struct PandaControlLoop
                       //dt = 0.001;
                       t += period;
                       dt = period;
+
+                      if (period == 0)
+                      {
+                        Init = state.q[index];
+                      }
                       //double delta_angle = M_PI / 30. * t;
-                      double delta_angle = M_PI / 8.0 * (1 - std::cos(M_PI / 2.5 * t));
+                      //double delta_angle = M_PI / 8.0 * (1 - std::cos(M_PI / 5 * t)) + Init;
+                      double delta_angle = - std::sin(M_PI / 10 * t);// + integral_init[index]; // for square signal
+                     // q_goal = delta_angle;
+                      // generate a square signal
+                      if (delta_angle <= 0)//integral_init[index])
+                      {
+                        q_goal = 0;// + integral_init[index];
+                      }
+                      else
+                      {
+                        q_goal = 1;// + integral_init[index]; 
+                      }
+
                       //double acc = 0.1;
-                      double P = 2;
-                      double D = 2 * std::sqrt(P);
-                      q_goal = delta_angle;
-                      double acc = - D * state.dq[4] - P * (state.q[4] - q_goal);
+                      
+                      D = 2 * std::sqrt(P);
+                      
+                      double e = state.q[index] - q_goal;
+                      if (std::abs(e) < 1e-2)
+                      { 
+                        e = 0;
+                        //integral_q = state.q[index];
+                        //integral_dq = state.dq[index];
+                        acc = - D * state.dq[index] - D * integral_dq  - P * (e);
+                      }
+                      else
+                      {
+                        acc = - D * state.dq[index] - P * (e);
+                      }
+
+                      // de = 0; 
+
+                      //if(dt != 0)
+                      //{  de = (e - e_prec) / dt;
+                      //}
+        
+                      
+                      e_prec = e;
+                      
+                      //acc = - D * state.dq[index] - P * (e);
+                      //double acc = - D * de - P * e;
                       integral_q += integral_dq * dt + 0.5 * acc * dt * dt;
                       integral_dq += acc * dt;
                      // integral = {{integral_init[0], integral_init[1] ,
                      //              integral_init[2], integral_init[3],
                      //              integral_init[4] + delta_angle, integral_init[5], integral_init[6]}};
-                      integral = {{integral_init[0], integral_init[1] ,
-                                   integral_init[2], integral_init[3],
-                                   integral_q, integral_init[5], integral_init[6]}};
+                      integral[index] = integral_q;
+                     // integral[index] = q_goal;
                      // integral = {{integral_init[0], integral_init[1] ,
                      //              integral_init[2], integral_init[3],
                      //              state.q[4] + 0.005, integral_init[5], integral_init[6]}};
@@ -157,9 +198,14 @@ struct PandaControlLoop
                           return ret;
                         });
                         //------------------------------------
-                        controller.controller().gui()->addElement(
-                          {"Franka"}, mc_rtc::gui::NumberInput("qGoal", [this]() { return q_goal; }, [this](double d) { q_goal = d; }));
+                        controller.controller().logger().addLogEntry("alphaRef", [this]() {
+                          double ret = integral_dq;
+                          return ret;
+                        });
                         //------------------------------------
+                      //  controller.controller().gui()->addElement(
+                      //    {"Franka"}, mc_rtc::gui::NumberInput("qGoal", [this]() { return q_goal; }, [this](double d) { q_goal = d; }));
+                      //  //------------------------------------
                         controller.controller().logger().addLogEntry("qGoal", [this]() {
                           double ret = q_goal;
                           return ret;
@@ -229,6 +275,16 @@ struct PandaControlLoop
                           for(size_t j = 0; j < 7; ++j)
                           {
                             ret.push_back(state.q_d[j]);
+                          }
+                          return ret;
+                        });
+                          //------------------------------------
+                          controller.controller().logger().addLogEntry("Error", [this]() {
+                          std::vector<double> ret;
+                          ret.reserve(7);
+                          for(size_t j = 0; j < 7; ++j)
+                          {
+                            ret.push_back(q_goal - state.q[j]);
                           }
                           return ret;
                         });
@@ -369,18 +425,47 @@ struct PandaControlLoop
                         });
                         //------------------------------------
                         controller.controller().logger().addLogEntry("timeFranka", [this]() {
-                          double ret = period;
+                          double ret = period * 1000;
+                          return ret;
+                        });
+                        //------------------------------------
+                        controller.controller().logger().addLogEntry("de", [this]() {
+                          double ret = de;
+                          return ret;
+                        });
+                        //-------------------------------------
+                        controller.controller().logger().addLogEntry("Stiffness", [this]() {
+                          double ret = P;
                           return ret;
                         });
                          //------------------------------------
-                        controller.controller().gui()->addElement(
-                          {"Franka"}, mc_rtc::gui::NumberInput("Torque input", [this]() { return torqueStep; }, [this](double d) { torqueStep = d; }));
+                        controller.controller().logger().addLogEntry("Damping", [this]() {
+                          double ret = D;
+                          return ret;
+                        });
                          //------------------------------------
-                        controller.controller().gui()->addElement(
-                          {"Franka"}, mc_rtc::gui::NumberInput("Velocity feedback gain", [this]() { return velGain; }, [this](double d) { velGain = d; }));
+                        controller.controller().logger().addLogEntry("acc", [this]() {
+                          double ret = acc;
+                          return ret;
+                        });
+                         //------------------------------------
+                      //  controller.controller().gui()->addElement(
+                      //    {"Franka"}, mc_rtc::gui::NumberInput("Torque input", [this]() { return torqueStep; }, [this](double d) { torqueStep = d; }));
+                      //   //------------------------------------
+                      //  controller.controller().gui()->addElement(
+                      //    {"Franka"}, mc_rtc::gui::NumberInput("Velocity feedback gain", [this]() { return velGain; }, [this](double d) { velGain = d; }));
+                      //  //------------------------------------
+                      //  controller.controller().gui()->addElement(
+                      //    {"Franka"}, mc_rtc::gui::NumberInput("Position feedback gain", [this]() { return posGain; }, [this](double d) { posGain = d; }));
                         //------------------------------------
                         controller.controller().gui()->addElement(
-                          {"Franka"}, mc_rtc::gui::NumberInput("Position feedback gain", [this]() { return posGain; }, [this](double d) { posGain = d; }));
+                          {"Franka"}, mc_rtc::gui::NumberInput("Stiffness", [this]() { return P; }, [this](double d) { P = d; }));
+                        //------------------------------------
+                        controller.controller().gui()->addElement(
+                          {"Franka"}, mc_rtc::gui::NumberInput("Damping", [this]() { return D; }, [this](double d) { D = d; }));
+                        //------------------------------------
+                        controller.controller().gui()->addElement(
+                          {{"Franka"}, "Target"}, mc_rtc::gui::NumberInput("Panda_jointA5", [this]() { return q_goal; }, [this](double d) { q_goal = d; }));
                         
                         return control.update(robot, command, sensor_id % steps, steps, coriolis, massTorque, state.tau_ext_hat_filtered, integral, torqueStep, posGain, velGain, feedback, period, state.q_d, state.dq_d);
                       }
@@ -409,6 +494,13 @@ struct PandaControlLoop
   double integral_q;
   double integral_dq;
   double q_goal = 0;
+  double P = 2;
+  double D;
+  double e_prec;
+  double de;
+  double acc;
+  int index = 6;
+  double Init;
   //std::vector<double> massMatrix_vector;
   //massMatrix_vector.reserve(49);
   //massMatrix_vector.assign(std::begin(massMatrix_array), std::end(massMatrix_array));
