@@ -17,23 +17,17 @@ int main(int argc, char * argv[])
   }
   try
   {
-    // Initialize the robot
     franka::Robot robot(argv[1]);
-
-    // Get the initial state of the robot
     const auto state = robot.readOnce();
-
-    // Print the joint positions
-    for(size_t i = 0; i < state.q.size(); ++i) {
-      std::cout << i+1 << ". Joint position = " << state.q[i] << std::endl;
+    for(size_t i = 0; i < state.q.size(); ++i)
+    {
+      std::cout << "Joint " << i << " : " << state.q[i] << "\n";
     }
-
-    // Stop the robot
     robot.stop();
   }
   catch(const franka::Exception & e)
   {
-    std::cerr << "franka::Exception " << e.what() << "\n";
+    std::cerr << "franka::Exception: " << e.what() << "\n";
     return 1;
   }
   return 0;
