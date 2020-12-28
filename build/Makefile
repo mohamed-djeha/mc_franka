@@ -80,6 +80,27 @@ install/fast: preinstall/fast
 	/usr/bin/cmake -P cmake_install.cmake
 .PHONY : install/fast
 
+# Special rule for the target list_install_components
+list_install_components:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Available install components are: \"Unspecified\""
+.PHONY : list_install_components
+
+# Special rule for the target list_install_components
+list_install_components/fast: list_install_components
+
+.PHONY : list_install_components/fast
+
+# Special rule for the target rebuild_cache
+rebuild_cache:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
+	/usr/bin/cmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+.PHONY : rebuild_cache
+
+# Special rule for the target rebuild_cache
+rebuild_cache/fast: rebuild_cache
+
+.PHONY : rebuild_cache/fast
+
 # Special rule for the target install/local
 install/local: preinstall
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
@@ -92,16 +113,6 @@ install/local/fast: preinstall/fast
 	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
 .PHONY : install/local/fast
 
-# Special rule for the target list_install_components
-list_install_components:
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Available install components are: \"Unspecified\""
-.PHONY : list_install_components
-
-# Special rule for the target list_install_components
-list_install_components/fast: list_install_components
-
-.PHONY : list_install_components/fast
-
 # Special rule for the target edit_cache
 edit_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake cache editor..."
@@ -112,17 +123,6 @@ edit_cache:
 edit_cache/fast: edit_cache
 
 .PHONY : edit_cache/fast
-
-# Special rule for the target rebuild_cache
-rebuild_cache:
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
-	/usr/bin/cmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
-.PHONY : rebuild_cache
-
-# Special rule for the target rebuild_cache
-rebuild_cache/fast: rebuild_cache
-
-.PHONY : rebuild_cache/fast
 
 # The main all target
 all: cmake_check_build_system
@@ -157,17 +157,17 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named PrintPandaState
+# Target rules for targets named setcap_MCFrankaControl
 
 # Build rule for target.
-PrintPandaState: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 PrintPandaState
-.PHONY : PrintPandaState
+setcap_MCFrankaControl: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 setcap_MCFrankaControl
+.PHONY : setcap_MCFrankaControl
 
 # fast build rule for target.
-PrintPandaState/fast:
-	$(MAKE) -f CMakeFiles/PrintPandaState.dir/build.make CMakeFiles/PrintPandaState.dir/build
-.PHONY : PrintPandaState/fast
+setcap_MCFrankaControl/fast:
+	$(MAKE) -f CMakeFiles/setcap_MCFrankaControl.dir/build.make CMakeFiles/setcap_MCFrankaControl.dir/build
+.PHONY : setcap_MCFrankaControl/fast
 
 #=============================================================================
 # Target rules for targets named MCFrankaControl
@@ -181,6 +181,19 @@ MCFrankaControl: cmake_check_build_system
 MCFrankaControl/fast:
 	$(MAKE) -f CMakeFiles/MCFrankaControl.dir/build.make CMakeFiles/MCFrankaControl.dir/build
 .PHONY : MCFrankaControl/fast
+
+#=============================================================================
+# Target rules for targets named PrintPandaState
+
+# Build rule for target.
+PrintPandaState: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 PrintPandaState
+.PHONY : PrintPandaState
+
+# fast build rule for target.
+PrintPandaState/fast:
+	$(MAKE) -f CMakeFiles/PrintPandaState.dir/build.make CMakeFiles/PrintPandaState.dir/build
+.PHONY : PrintPandaState/fast
 
 #=============================================================================
 # Target rules for targets named StopPandaPump
@@ -311,13 +324,14 @@ help:
 	@echo "... depend"
 	@echo "... install/strip"
 	@echo "... install"
-	@echo "... PrintPandaState"
+	@echo "... list_install_components"
+	@echo "... setcap_MCFrankaControl"
+	@echo "... rebuild_cache"
 	@echo "... install/local"
 	@echo "... MCFrankaControl"
-	@echo "... list_install_components"
+	@echo "... PrintPandaState"
 	@echo "... StopPandaPump"
 	@echo "... edit_cache"
-	@echo "... rebuild_cache"
 	@echo "... src/MCFrankaControl.o"
 	@echo "... src/MCFrankaControl.i"
 	@echo "... src/MCFrankaControl.s"

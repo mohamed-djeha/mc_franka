@@ -220,6 +220,12 @@ PKG_CONFIG_EXECUTABLE:FILEPATH=/usr/bin/pkg-config
 //The directory containing a CMake configuration file for RBDyn.
 RBDyn_DIR:PATH=/usr/local/lib/cmake/RBDyn
 
+//Path to a program.
+SETCAP:FILEPATH=/sbin/setcap
+
+//Path to a program.
+SUDO:FILEPATH=/usr/bin/sudo
+
 //The directory containing a CMake configuration file for SpaceVecAlg.
 SpaceVecAlg_DIR:PATH=/usr/local/lib/cmake/SpaceVecAlg
 
@@ -246,6 +252,9 @@ cpp_common_FULL_PATH:FILEPATH=/opt/ros/melodic/lib/libcpp_common.so
 
 //Path to a library.
 dl_FULL_PATH:FILEPATH=/usr/lib/x86_64-linux-gnu/libdl.so
+
+//The directory containing a CMake configuration file for eigen-lssol.
+eigen-lssol_DIR:PATH=/usr/local/lib/cmake/eigen-lssol
 
 //The directory containing a CMake configuration file for eigen-qld.
 eigen-qld_DIR:PATH=/usr/local/lib/cmake/eigen-qld
@@ -645,7 +654,7 @@ MC_RTC_roscpp_STATIC_LIBS:INTERNAL=
 MC_RTC_roscpp_STATIC_LIBS_L:INTERNAL=
 MC_RTC_roscpp_STATIC_LIBS_OTHER:INTERNAL=
 MC_RTC_roscpp_STATIC_LIBS_PATHS:INTERNAL=
-MC_RTC_roscpp_VERSION:INTERNAL=1.14.6
+MC_RTC_roscpp_VERSION:INTERNAL=1.14.10
 MC_RTC_roscpp_roscpp_INCLUDEDIR:INTERNAL=
 MC_RTC_roscpp_roscpp_LIBDIR:INTERNAL=
 MC_RTC_roscpp_roscpp_PREFIX:INTERNAL=

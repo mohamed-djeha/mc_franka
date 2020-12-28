@@ -60,39 +60,39 @@ CMAKE_SOURCE_DIR = /home/mohamed/src/mc_franka
 CMAKE_BINARY_DIR = /home/mohamed/src/mc_franka/build
 
 #=============================================================================
-# Target rules for target CMakeFiles/PrintPandaState.dir
+# Target rules for target CMakeFiles/setcap_MCFrankaControl.dir
 
 # All Build rule for target.
-CMakeFiles/PrintPandaState.dir/all:
-	$(MAKE) -f CMakeFiles/PrintPandaState.dir/build.make CMakeFiles/PrintPandaState.dir/depend
-	$(MAKE) -f CMakeFiles/PrintPandaState.dir/build.make CMakeFiles/PrintPandaState.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mohamed/src/mc_franka/build/CMakeFiles --progress-num=4,5 "Built target PrintPandaState"
-.PHONY : CMakeFiles/PrintPandaState.dir/all
+CMakeFiles/setcap_MCFrankaControl.dir/all: CMakeFiles/MCFrankaControl.dir/all
+	$(MAKE) -f CMakeFiles/setcap_MCFrankaControl.dir/build.make CMakeFiles/setcap_MCFrankaControl.dir/depend
+	$(MAKE) -f CMakeFiles/setcap_MCFrankaControl.dir/build.make CMakeFiles/setcap_MCFrankaControl.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mohamed/src/mc_franka/build/CMakeFiles --progress-num= "Built target setcap_MCFrankaControl"
+.PHONY : CMakeFiles/setcap_MCFrankaControl.dir/all
 
 # Include target in all.
-all: CMakeFiles/PrintPandaState.dir/all
+all: CMakeFiles/setcap_MCFrankaControl.dir/all
 
 .PHONY : all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/PrintPandaState.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/mohamed/src/mc_franka/build/CMakeFiles 2
-	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/PrintPandaState.dir/all
+CMakeFiles/setcap_MCFrankaControl.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/mohamed/src/mc_franka/build/CMakeFiles 3
+	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/setcap_MCFrankaControl.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/mohamed/src/mc_franka/build/CMakeFiles 0
-.PHONY : CMakeFiles/PrintPandaState.dir/rule
+.PHONY : CMakeFiles/setcap_MCFrankaControl.dir/rule
 
 # Convenience name for target.
-PrintPandaState: CMakeFiles/PrintPandaState.dir/rule
+setcap_MCFrankaControl: CMakeFiles/setcap_MCFrankaControl.dir/rule
 
-.PHONY : PrintPandaState
-
-# clean rule for target.
-CMakeFiles/PrintPandaState.dir/clean:
-	$(MAKE) -f CMakeFiles/PrintPandaState.dir/build.make CMakeFiles/PrintPandaState.dir/clean
-.PHONY : CMakeFiles/PrintPandaState.dir/clean
+.PHONY : setcap_MCFrankaControl
 
 # clean rule for target.
-clean: CMakeFiles/PrintPandaState.dir/clean
+CMakeFiles/setcap_MCFrankaControl.dir/clean:
+	$(MAKE) -f CMakeFiles/setcap_MCFrankaControl.dir/build.make CMakeFiles/setcap_MCFrankaControl.dir/clean
+.PHONY : CMakeFiles/setcap_MCFrankaControl.dir/clean
+
+# clean rule for target.
+clean: CMakeFiles/setcap_MCFrankaControl.dir/clean
 
 .PHONY : clean
 
@@ -130,6 +130,43 @@ CMakeFiles/MCFrankaControl.dir/clean:
 
 # clean rule for target.
 clean: CMakeFiles/MCFrankaControl.dir/clean
+
+.PHONY : clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/PrintPandaState.dir
+
+# All Build rule for target.
+CMakeFiles/PrintPandaState.dir/all:
+	$(MAKE) -f CMakeFiles/PrintPandaState.dir/build.make CMakeFiles/PrintPandaState.dir/depend
+	$(MAKE) -f CMakeFiles/PrintPandaState.dir/build.make CMakeFiles/PrintPandaState.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mohamed/src/mc_franka/build/CMakeFiles --progress-num=4,5 "Built target PrintPandaState"
+.PHONY : CMakeFiles/PrintPandaState.dir/all
+
+# Include target in all.
+all: CMakeFiles/PrintPandaState.dir/all
+
+.PHONY : all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/PrintPandaState.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/mohamed/src/mc_franka/build/CMakeFiles 2
+	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/PrintPandaState.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/mohamed/src/mc_franka/build/CMakeFiles 0
+.PHONY : CMakeFiles/PrintPandaState.dir/rule
+
+# Convenience name for target.
+PrintPandaState: CMakeFiles/PrintPandaState.dir/rule
+
+.PHONY : PrintPandaState
+
+# clean rule for target.
+CMakeFiles/PrintPandaState.dir/clean:
+	$(MAKE) -f CMakeFiles/PrintPandaState.dir/build.make CMakeFiles/PrintPandaState.dir/clean
+.PHONY : CMakeFiles/PrintPandaState.dir/clean
+
+# clean rule for target.
+clean: CMakeFiles/PrintPandaState.dir/clean
 
 .PHONY : clean
 

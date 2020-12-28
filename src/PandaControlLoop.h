@@ -12,7 +12,9 @@
 
 #include <condition_variable>
 #include <thread>
-
+#include <franka/model.h>
+#include <Eigen/Dense>
+#include <array>
 namespace mc_franka
 {
 
@@ -78,6 +80,12 @@ private:
   std::string name_;
   franka::Robot robot_;
   franka::RobotState state_;
+  franka::Model model = robot_.loadModel();
+  std::array<double, 7> coriolis = model.coriolis(state_);
+  std::array<double, 49> massMatrix_array = model.mass(state_);
+  Eigen::Matrix<double, 7, 1> massTorque;
+  Eigen::Matrix<double, 7, 1> accelerationQP;
+  Eigen::Matrix<double, 7, 7> massMatrix;
   PandaControlType<cm> control_;
   mc_panda::Robot & device_;
   size_t steps_ = 1;
@@ -197,7 +205,22 @@ void PandaControlLoop<cm>::controlThread(mc_control::MCGlobalController & contro
         {
           logger_.log();
           auto & robot = controller.controller().robots().robot(name_);
-          return control_.update(robot, command_, sensor_id_ % steps_, steps_);
+          // Update coriolis vector and the mass matrix
+          coriolis = model.coriolis(state_);
+          massMatrix_array = model.mass(state_);
+          Eigen::Map<const Eigen::Matrix<double, 7, 7>> massMatrix(massMatrix_array.data());
+          // Compute the  mass torque 
+          const auto & rjo = robot.refJointOrder();
+          int i = 0;
+          for(const auto & j : rjo)
+          {
+            accelerationQP(i, 0) = robot.mbc().alphaD[robot.jointIndexByName(j)][0];
+            i += 1;
+          }
+
+          massTorque = massMatrix * accelerationQP;
+
+          return control_.update(robot, command_, sensor_id_ % steps_, steps_, coriolis, massTorque);
         }
         return franka::MotionFinished(control_);
       });
