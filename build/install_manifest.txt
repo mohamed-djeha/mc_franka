@@ -1,3 +1,0 @@
-/usr/local/bin/MCFrankaControl
-/usr/local/bin/PrintPandaState
-/usr/local/bin/StopPandaPump
