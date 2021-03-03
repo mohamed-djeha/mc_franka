@@ -86,6 +86,7 @@ private:
   Eigen::Matrix<double, 7, 1> massTorque;
   Eigen::Matrix<double, 7, 1> accelerationQP;
   Eigen::Matrix<double, 7, 7> massMatrix;
+  double velGain = 2.;
   PandaControlType<cm> control_;
   mc_panda::Robot & device_;
   size_t steps_ = 1;
@@ -219,8 +220,9 @@ void PandaControlLoop<cm>::controlThread(mc_control::MCGlobalController & contro
           }
 
           massTorque = massMatrix * accelerationQP;
-
-          return control_.update(robot, command_, sensor_id_ % steps_, steps_, coriolis, massTorque);
+            controller.controller().gui()->addElement(
+             {"Franka"}, mc_rtc::gui::NumberInput("Velocity feedback gain", [this]() { return velGain; }, [this](double d) { velGain = d; }));
+          return control_.update(robot, command_, sensor_id_ % steps_, steps_, coriolis, massTorque, velGain);
         }
         return franka::MotionFinished(control_);
       });
