@@ -183,6 +183,8 @@ void PandaControlLoop<cm>::controlThread(mc_control::MCGlobalController & contro
     startCV.wait(lock, [&]() { return start; });
   }
   auto start_t = clock::now();
+  controller.controller().gui()->addElement(
+             {"Franka"}, mc_rtc::gui::NumberInput("Velocity feedback gain", [this]() { return velGain; }, [this](double d) { velGain = d; }));
   control_.control(
       robot_,
       [&, this ](const franka::RobotState & stateIn, franka::Duration dt) -> typename PandaControlType<cm>::ReturnT {
@@ -202,6 +204,7 @@ void PandaControlLoop<cm>::controlThread(mc_control::MCGlobalController & contro
           }
           prev_control_id_ = control_id_;
         }
+        
         if(running)
         {
           logger_.log();
@@ -218,10 +221,8 @@ void PandaControlLoop<cm>::controlThread(mc_control::MCGlobalController & contro
             accelerationQP(i, 0) = robot.mbc().alphaD[robot.jointIndexByName(j)][0];
             i += 1;
           }
-
           massTorque = massMatrix * accelerationQP;
-            controller.controller().gui()->addElement(
-             {"Franka"}, mc_rtc::gui::NumberInput("Velocity feedback gain", [this]() { return velGain; }, [this](double d) { velGain = d; }));
+            
           return control_.update(robot, command_, sensor_id_ % steps_, steps_, coriolis, massTorque, velGain);
         }
         return franka::MotionFinished(control_);

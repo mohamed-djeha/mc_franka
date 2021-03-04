@@ -89,7 +89,7 @@ struct PandaControlType<ControlMode::Torque> : public franka::Torques
   PandaControlType(const franka::RobotState & state) : franka::Torques(state.tau_J) {}
 
   // Update control value from the data in a robot
-  franka::Torques update(const mc_rbdyn::Robot & robot, const rbd::MultiBodyConfig & mbc, size_t, size_t, const std::array<double, 7> & coriolis, const Eigen::Matrix<double, 7, 1> & massTorque, double & velGain)
+  franka::Torques update(const mc_rbdyn::Robot & robot, const rbd::MultiBodyConfig & mbc, size_t, size_t, const std::array<double, 7> & coriolis, const Eigen::Matrix<double, 7, 1> & massTorque, double velGain)
   {
     const auto & rjo = robot.refJointOrder();
     for(size_t i = 0; i < tau_J.size(); ++i)
